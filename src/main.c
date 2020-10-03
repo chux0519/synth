@@ -1,3 +1,4 @@
+#include <X11/XKBlib.h>
 #include <X11/Xlib.h>
 #include <math.h>
 #include <pthread.h>
@@ -12,7 +13,7 @@
 
 #define KEY_DELAY 30
 
-atomic_int pitch = 0;
+atomic_int pitch = 440;
 
 static long diff_time_ms(struct timeval a, struct timeval b) {
   long seconds = a.tv_sec - b.tv_sec;
@@ -120,6 +121,8 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
+  // XAutoRepeatOff(display);
+  XkbSetDetectableAutoRepeat(display, 1, NULL);
   s = DefaultScreen(display);
 
   /* create window */
@@ -133,41 +136,30 @@ int main(int argc, char **argv) {
   /* map (show) the window */
   XMapWindow(display, window);
 
-  unsigned int k;
   struct timeval last_press, last_release;
   gettimeofday(&last_press, NULL);
   gettimeofday(&last_release, NULL);
 
+  soundio_outstream_pause(outstream, true);
   /* event loop */
   while (1) {
     XNextEvent(display, &event);
 
     /* keyboard events */
     if (event.type == KeyPress) {
-      gettimeofday(&last_press, NULL);
       printf("KeyPress: %x\n", event.xkey.keycode);
-      long delta = diff_time_ms(last_press, last_release);
-
-      if (k != event.xkey.keycode || delta > KEY_DELAY) {
-        printf("delta: %ld\n", delta);
-        pitch = 440;
-        soundio_outstream_pause(outstream, false);
-      }
+      // pitch = 440;
+      soundio_outstream_pause(outstream, false);
       /* exit on ESC key press */
       if (event.xkey.keycode == 0x09) break;
     } else if (event.type == KeyRelease) {
-      k = event.xkey.keycode;
-      gettimeofday(&last_release, NULL);
       printf("KeyRelease: %x\n", event.xkey.keycode);
-      long delta = diff_time_ms(last_release, last_press);
-      if (delta > KEY_DELAY) {
-        printf("delta: %ld\n", delta);
-        pitch = 0;
-        soundio_outstream_pause(outstream, true);
-      }
+      // pitch = 0;
+      soundio_outstream_pause(outstream, true);
     }
   }
 
+  // XAutoRepeatOn(display);
   /* close connection to server */
   XCloseDisplay(display);
 
