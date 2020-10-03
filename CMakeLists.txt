@@ -53,4 +53,5 @@ add_subdirectory(3rd-party/libsoundio)
 
 add_executable(synth ${SOURCES})
 
-target_link_libraries(synth libsoundio_shared m)
+target_link_libraries(synth libsoundio_shared m X11)
+
