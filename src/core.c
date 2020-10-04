@@ -16,6 +16,15 @@ static unsigned int rate = 44100; /* stream rate */
 static unsigned int buffer_time = 50000; /* ring buffer length in us */
 static unsigned int period_time = 50000; /* period time in us */
 
+double osc_sin(double phase) { return sin(phase); }
+double osc_square(double phase) { return sin(phase) > 0 ? 1.0 : -1.0; }
+double osc_triangle(double phase) { return asin(sin(phase)) * (2.0 / M_PI); }
+double osc_saw_analogue(double phase) {
+  double ret = 0.0;
+  for (double n = 1.0; n < 40.0; n++) ret += (sin(n * phase)) / n;
+  return ret * (2.0 / M_PI);
+}
+
 static int set_hwparams(synth_ctx_t *ctx) {
   unsigned int rrate;
   snd_pcm_uframes_t size;
@@ -161,6 +170,8 @@ static void generate_sine(synth_ctx_t *ctx, double *_phase, double freq) {
   int count = ctx->alsa.period_size;
   int offset = 0;
   int channels = ctx->channels;
+  synth_osc_fn process = ctx->process;
+  if (process == NULL) process = osc_sin;
 
   static double max_phase = 2. * M_PI;
   double phase = *_phase;
@@ -174,9 +185,6 @@ static void generate_sine(synth_ctx_t *ctx, double *_phase, double freq) {
   int phys_bps = snd_pcm_format_physical_width(format) / 8;
   int big_endian = snd_pcm_format_big_endian(format) == 1;
   int to_unsigned = snd_pcm_format_unsigned(format) == 1;
-  int is_float =
-      (format == SND_PCM_FORMAT_FLOAT_LE || format == SND_PCM_FORMAT_FLOAT_BE);
-
   /* verify and prepare the contents of areas */
   for (chn = 0; chn < channels; chn++) {
     if ((areas[chn].first % 8) != 0) {
@@ -199,11 +207,7 @@ static void generate_sine(synth_ctx_t *ctx, double *_phase, double freq) {
       int i;
     } fval;
     int res, i;
-    if (is_float) {
-      fval.f = sin(phase);
-      res = fval.i;
-    } else
-      res = sin(phase) * maxval;
+    res = process(phase) * maxval;
     if (to_unsigned) res ^= 1U << (format_bits - 1);
     for (chn = 0; chn < channels; chn++) {
       /* Generate data in native endian format */
@@ -280,12 +284,13 @@ static int write_loop(synth_ctx_t *ctx) {
 }
 
 synth_ctx_t *synth_ctx_create(const char *device_, int channels, double volume,
-                              int freq) {
+                              int freq, synth_osc_fn process) {
   int err;
   synth_ctx_t *ptr = malloc(sizeof(synth_ctx_t));
   ptr->channels = channels;
   ptr->freq = ATOMIC_VAR_INIT(freq);
   ptr->volume = volume;
+  ptr->process = process;
   snd_pcm_hw_params_alloca(&ptr->alsa.hwparams);
   snd_pcm_sw_params_alloca(&ptr->alsa.swparams);
 
@@ -333,7 +338,7 @@ void synth_ctx_destroy(synth_ctx_t *ctx) {
 }
 
 void set_syth_ctx_freq(synth_ctx_t *ctx, int freq) {
-  freq = freq < 50 ? 50 : freq;
+  freq = freq < 0 ? 0 : freq;
   freq = freq > 5000 ? 5000 : freq;
   atomic_exchange_explicit(&ctx->freq, freq, memory_order_release);
 }

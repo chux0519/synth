@@ -3,6 +3,13 @@
 #include <alsa/asoundlib.h>
 #include <stdatomic.h>
 
+typedef double (*synth_osc_fn)(double phase);
+
+double osc_sin(double phase);
+double osc_square(double phase);
+double osc_triangle(double phase);
+double osc_saw_analogue(double phase);
+
 typedef struct _alsa_ctx {
   snd_pcm_t *handle;
   snd_pcm_hw_params_t *hwparams;
@@ -18,10 +25,11 @@ typedef struct _synth_ctx {
   int channels;
   _Atomic int freq;
   double volume;
+  synth_osc_fn process;
 } synth_ctx_t;
 
 synth_ctx_t *synth_ctx_create(const char *device_, int channels, double volume,
-                              int freq);
+                              int freq, synth_osc_fn process);
 
 void set_syth_ctx_freq(synth_ctx_t *ctx, int freq);
 
