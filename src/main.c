@@ -39,12 +39,12 @@ int main(int argc, char *argv[]) {
     /* keyboard events */
     if (event.type == KeyPress) {
       printf("KeyPress: %x\n", event.xkey.keycode);
-      atomic_exchange_explicit(&ctx->freq, 440, memory_order_release);
+      set_syth_ctx_freq(ctx, 440);
       /* exit on ESC key press */
       if (event.xkey.keycode == 0x09) break;
     } else if (event.type == KeyRelease) {
       printf("KeyRelease: %x\n", event.xkey.keycode);
-      atomic_exchange_explicit(&ctx->freq, 0, memory_order_release);
+      set_syth_ctx_freq(ctx, 0);
     }
   }
 

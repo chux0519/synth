@@ -23,6 +23,8 @@ typedef struct _synth_ctx {
 synth_ctx_t *synth_ctx_create(const char *device_, int channels, double volume,
                               int freq);
 
+void set_syth_ctx_freq(synth_ctx_t *ctx, int freq);
+
 void synth_loop_start(synth_ctx_t *ctx);
 
 void synth_ctx_destroy(synth_ctx_t *ctx);

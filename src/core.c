@@ -331,3 +331,9 @@ void synth_ctx_destroy(synth_ctx_t *ctx) {
   if (ctx->alsa.handle) snd_pcm_close(ctx->alsa.handle);
   if (ctx) free(ctx);
 }
+
+void set_syth_ctx_freq(synth_ctx_t *ctx, int freq) {
+  freq = freq < 50 ? 50 : freq;
+  freq = freq > 5000 ? 5000 : freq;
+  atomic_exchange_explicit(&ctx->freq, freq, memory_order_release);
+}
