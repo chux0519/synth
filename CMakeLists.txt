@@ -46,12 +46,12 @@ set(CMAKE_C_FLAGS_UBSAN
 file(GLOB SOURCES src/*.c)
 
 include_directories(src)
-include_directories(3rd-party)
-include_directories(3rd-party/libsoundio)
 
-add_subdirectory(3rd-party/libsoundio)
+find_package(ALSA REQUIRED)
+include_directories(${ALSA_INCLUDE_DIRS})
+
 
 add_executable(synth ${SOURCES})
 
-target_link_libraries(synth libsoundio_shared m X11)
+target_link_libraries(synth m X11 ${ALSA_LIBRARIES})
 

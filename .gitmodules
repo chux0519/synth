@@ -1,3 +1,0 @@
-[submodule "3rd-party/libsoundio"]
-	path = 3rd-party/libsoundio
-	url = https://github.com/andrewrk/libsoundio.git

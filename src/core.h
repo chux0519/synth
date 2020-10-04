@@ -1,13 +1,24 @@
 #pragma once
-#include <soundio/soundio.h>
 
-typedef void (*synth_cb)(struct SoundIoOutStream *, int frame_count_min,
-                         int frame_count_max);
+#include <alsa/asoundlib.h>
 
-struct SynthContext {
-  synth_cb cb;
-  struct SoundIo *io;
-  struct SoundIoOutStream *out;
-};
+typedef struct _alsa_ctx {
+  snd_pcm_t *handle;
+  snd_pcm_hw_params_t *hwparams;
+  snd_pcm_sw_params_t *swparams;
+  snd_pcm_channel_area_t *areas;
+  snd_pcm_sframes_t buffer_size;
+  snd_pcm_sframes_t period_size;
+} alsa_ctx_t;
 
-int start_soundio(struct SynthContext *ctx);
+typedef struct _synth_ctx {
+  alsa_ctx_t alsa;
+  unsigned short *samples;
+  int channels;
+} synth_ctx_t;
+
+synth_ctx_t *synth_ctx_create(const char *device_, int channels);
+
+void synth_loop_start(synth_ctx_t *ctx);
+
+void synth_ctx_destroy(synth_ctx_t *ctx);
