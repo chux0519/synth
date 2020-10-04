@@ -13,9 +13,8 @@ static int resample = 1; /* enable alsa-lib resampling */
 static int verbose = 1;
 static int period_event = 0;      /* produce poll event after each period */
 static unsigned int rate = 44100; /* stream rate */
-static unsigned int buffer_time = 500000; /* ring buffer length in us */
-static unsigned int period_time = 100000; /* period time in us */
-static double freq = 440;                 /* sinusoidal wave frequency in Hz */
+static unsigned int buffer_time = 50000; /* ring buffer length in us */
+static unsigned int period_time = 50000; /* period time in us */
 
 static int set_hwparams(synth_ctx_t *ctx) {
   unsigned int rrate;
@@ -157,9 +156,12 @@ static int set_swparams(synth_ctx_t *ctx) {
   return 0;
 }
 
-static void generate_sine(const snd_pcm_channel_area_t *areas,
-                          snd_pcm_uframes_t offset, int count, double *_phase,
-                          int channels) {
+static void generate_sine(synth_ctx_t *ctx, double *_phase, double freq) {
+  snd_pcm_channel_area_t *areas = ctx->alsa.areas;
+  int count = ctx->alsa.period_size;
+  int offset = 0;
+  int channels = ctx->channels;
+
   static double max_phase = 2. * M_PI;
   double phase = *_phase;
   double step = max_phase * freq / (double)rate;
@@ -167,7 +169,7 @@ static void generate_sine(const snd_pcm_channel_area_t *areas,
   int steps[channels];
   unsigned int chn;
   int format_bits = snd_pcm_format_width(format);
-  unsigned int maxval = 0.3 * ((1 << (format_bits - 1)) - 1);
+  unsigned int maxval = ctx->volume * ((1 << (format_bits - 1)) - 1);
   int bps = format_bits / 8; /* bytes per sample */
   int phys_bps = snd_pcm_format_physical_width(format) / 8;
   int big_endian = snd_pcm_format_big_endian(format) == 1;
@@ -246,14 +248,20 @@ static int write_loop(synth_ctx_t *ctx) {
   int err, cptr;
 
   snd_pcm_t *handle = ctx->alsa.handle;
-  signed short *samples = ctx->samples;
-  snd_pcm_channel_area_t *areas = ctx->alsa.areas;
+  signed short *samples = (signed short *)ctx->samples;
   snd_pcm_sframes_t period_size = ctx->alsa.period_size;
   int channels = ctx->channels;
+  int freq, last_freq;
   while (1) {
-    generate_sine(areas, 0, period_size, &phase, channels);
+    freq = atomic_fetch_add_explicit(&ctx->freq, 0, memory_order_acquire);
+    if (last_freq != freq) {
+      printf("changed: %d -> %d\n", last_freq, freq);
+    }
+    generate_sine(ctx, &phase, (double)freq);
     ptr = samples;
     cptr = period_size;
+
+    last_freq = freq;
     while (cptr > 0) {
       err = snd_pcm_writei(handle, ptr, cptr);
       if (err == -EAGAIN) continue;
@@ -267,13 +275,17 @@ static int write_loop(synth_ctx_t *ctx) {
       ptr += err * channels;
       cptr -= err;
     }
+    last_freq = freq;
   }
 }
 
-synth_ctx_t *synth_ctx_create(const char *device_, int channels) {
+synth_ctx_t *synth_ctx_create(const char *device_, int channels, double volume,
+                              int freq) {
   int err;
   synth_ctx_t *ptr = malloc(sizeof(synth_ctx_t));
   ptr->channels = channels;
+  ptr->freq = ATOMIC_VAR_INIT(freq);
+  ptr->volume = volume;
   snd_pcm_hw_params_alloca(&ptr->alsa.hwparams);
   snd_pcm_sw_params_alloca(&ptr->alsa.swparams);
 

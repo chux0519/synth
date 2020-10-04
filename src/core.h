@@ -1,6 +1,7 @@
 #pragma once
 
 #include <alsa/asoundlib.h>
+#include <stdatomic.h>
 
 typedef struct _alsa_ctx {
   snd_pcm_t *handle;
@@ -15,9 +16,12 @@ typedef struct _synth_ctx {
   alsa_ctx_t alsa;
   unsigned short *samples;
   int channels;
+  _Atomic int freq;
+  double volume;
 } synth_ctx_t;
 
-synth_ctx_t *synth_ctx_create(const char *device_, int channels);
+synth_ctx_t *synth_ctx_create(const char *device_, int channels, double volume,
+                              int freq);
 
 void synth_loop_start(synth_ctx_t *ctx);
 

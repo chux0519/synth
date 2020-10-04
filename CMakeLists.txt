@@ -50,8 +50,11 @@ include_directories(src)
 find_package(ALSA REQUIRED)
 include_directories(${ALSA_INCLUDE_DIRS})
 
+find_package(X11 REQUIRED)
+include_directories(${X11_INCLUDE_DIR})
+
 
 add_executable(synth ${SOURCES})
 
-target_link_libraries(synth m X11 ${ALSA_LIBRARIES})
+target_link_libraries(synth m pthread ${X11_LIBRARIES} ${ALSA_LIBRARIES})
 
